@@ -7,6 +7,7 @@ import TrackedScreen from '../screens/TrackedScreen';
 import Quiz from '../screens/Quiz';
 import DailyScreen from '../screens/DailyScreen';
 import QuizFinished from '../screens/QuizFinished';
+import Details from '../screens/Details';
 
 const config = Platform.select({
   web: { headerMode: 'screen' },
@@ -16,6 +17,7 @@ const config = Platform.select({
 const TrackedStack = createStackNavigator(
   {
     Tracked: TrackedScreen,
+    Details: Details
   },
   config
 );
