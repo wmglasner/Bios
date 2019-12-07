@@ -8,56 +8,92 @@ import {
   Text,
   TouchableOpacity,
   View,
+  List,
+  ListItem
 } from 'react-native';
+import {Button} from 'react-native-elements';
+import TrackedItem from './TrackedItem';
 
 import { MonoText } from '../components/StyledText';
+const fetch = require("node-fetch");
+import firebase, {firebaseConfig} from '../secret.config';
+require("firebase/firestore");
 
-export default function TrackedScreen() {
+const db = firebase.firestore();
+
+
+export default class TrackedScreen extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tracked: [],
+      dataReceived: false
+    }
+  }
+  
+  componentDidMount() {
+    var self=this;
+    console.log(Array.isArray(this.state.tracked));
+    var collectionRef = db.collection("tracked");
+    this.unsubscribeTracked = collectionRef.onSnapshot((querySnapshot) => {
+      let tracked=this.state.tracked;
+      console.log("Tracking initial" + typeof tracked);
+      querySnapshot.forEach((snapshot) => {
+        let snapObj ={...snapshot.data(), id: snapshot.id};
+        if(!tracked.some(item => item.id === snapObj.id)) {
+          tracked.push({
+            ...snapshot.data(),
+            id: snapshot.id
+          });
+          console.log("Tracking pushed" + tracked);
+        }
+
+
+      });
+      
+      console.log("Tracked items to be set" + tracked);
+      self.setState({tracked: tracked, dataReceived: true});
+
+    });
+  }
+  componentWillMount() {
+
+
+    if(this.unsubscribeTracked) {
+      //unsubscribe listeners to prevent mem leaks
+      this.unsubscribeTracked();
+    }
+
+  }
+  componentWillUpdate() {
+
+  }
+  
+  showTrackedDetail = (tracked) => {
+    this.props.navigation.navigate('Details', {...tracked});
+  }
+  render() {
+  const {tracked, dataReceived} = this.state;
+  // console.log(trackedList);
+  console.log(Array.isArray(tracked));
+  if(dataReceived) {
+
+  
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}>
-        <View style={styles.welcomeContainer}>
-          <Image
-            source={
-              __DEV__
-                ? require('../assets/images/robot-dev.png')
-                : require('../assets/images/robot-prod.png')
-            }
-            style={styles.welcomeImage}
-          />
-        </View>
 
-        <View style={styles.getStartedContainer}>
-          <DevelopmentModeNotice />
-
-          <Text style={styles.getStartedText}>Bios</Text>
-
-          <View
-            style={[styles.codeHighlightContainer, styles.homeScreenFilename]}>
-            <MonoText>screens/Tracked.js</MonoText>
-          </View>
-
-          <Text style={styles.getStartedText}>
-            Change this text and your app will automatically reload.
-          </Text>
-        </View>
-
-        <View style={styles.helpContainer}>
-          <TouchableOpacity onPress={handleHelpPress} style={styles.helpLink}>
-            <Text style={styles.helpLinkText}>
-              Help, it didn’t automatically reload!
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <ScrollView>
+      <View style={[styles.getStartedContainer, styles.codeHighlightContainer, {marginTop: 50, height:50}]}><Text style={[styles.getStartedText, { marginTop:15, fontSize:25, color:'black'}]}>Tracked Species</Text></View>
+        <View >
+          {tracked.map((species, idx) => (
+            <Button style={{margin:20}} key={idx} title={species.name + "\n " + species.scientificName} onPress={() => this.showTrackedDetail(species)} />
+          ))}
+      </View>
       </ScrollView>
-
       <View style={styles.tabBarInfoContainer}>
         <Text style={styles.tabBarInfoText}>
           This is a tab bar. You can edit it in:
         </Text>
-
         <View
           style={[styles.codeHighlightContainer, styles.navigationFilename]}>
           <MonoText style={styles.codeHighlightText}>
@@ -67,6 +103,18 @@ export default function TrackedScreen() {
       </View>
     </View>
   );
+}
+else {
+  return (
+    <View><Text>Awaiting Data</Text><Button title={"Check Data"} onPress={()=> {
+      if(this.state.dataReceived){
+        this.forceUpdate();
+        console.log(this.state.tracked);
+      }
+    }}></Button></View>
+  );
+}
+}
 }
 
 TrackedScreen.navigationOptions = {

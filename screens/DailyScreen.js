@@ -9,21 +9,23 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {Button} from 'react-native-elements';
 
 import { MonoText } from '../components/StyledText';
 const fetch = require("node-fetch");
-import firebase from 'firebase/app';
-import {firebaseConfig} from '../secret.config';
+import firebase, {firebaseConfig} from '../secret.config';
+import { italic } from 'ansi-colors';
 require("firebase/firestore");
 
-firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+
 
 export default class DailyScreen extends React.Component {
   constructor(props) {
     super()
     this.state ={
-      tracked: false,
+      tracked: null,
       name: null,
       identifier:null,
       scientificName:null,
@@ -31,49 +33,69 @@ export default class DailyScreen extends React.Component {
       description: null
 
     }
+
   }
 
-
   componentDidMount () {
-    fetch('https://eol.org/api/pages/1.0/491995.json?details=true&images_per_page=1&common_names=true&texts_per_page=10')
+    let selection = ['1700', '1174377','491995', '620727','311544', '597357', '1195786', '1644', '46554113']
+    var randomIndex = Math.floor(Math.random() * selection.length); 
+    var randomElement = selection[randomIndex];
+    
+    fetch('https://eol.org/api/pages/1.0/'+randomElement+'.json?details=true&images_per_page=1&common_names=true&texts_per_page=30')
     .then(response => response.json())
     .then( 
       (data) => {
-        let nameObj = data.taxonConcept.vernacularNames.find(obj => obj.language == 'en').vernacularName;
-        console.log(nameObj);
+        let name = "No Vernacular Name found"
+        if (data.taxonConcept.vernacularNames !== undefined) {
+          let nameObj = data.taxonConcept.vernacularNames.find(obj => obj.language == "en");
+          if(nameObj !== undefined) {
+            name = nameObj.vernacularName
+            // console.log(name);
+          }
+        }
         let id = data.taxonConcept.identifier;
         let sciName = data.taxonConcept.scientificName;
-        let image = "https://cdn5.vectorstock.com/i/1000x1000/26/19/yellow-sad-face-vector-5292619.jpg"
-        let description = "No English Description Found"
+        let image = "https://cdn5.vectorstock.com/i/1000x1000/26/19/yellow-sad-face-vector-5292619.jpg";
+        let description = "No English Description Found";
         if(data.taxonConcept.dataObjects !== undefined) {
-          // image = data.taxonConcept.dataObjects[0].eolMediaURL
           let imageOb = data.taxonConcept.dataObjects.find(obj => obj.mediumType == "image")
-          if (imageOb.eolMediaURL !==undefined) {
+          if (imageOb !==undefined) {
             image= imageOb.eolMediaURL
           }
-          
           let descriptionOb = data.taxonConcept.dataObjects.find(obj => obj.dataType == "http://purl.org/dc/dcmitype/Text" && obj.language == "en")
           if (descriptionOb !== undefined) {
             description = descriptionOb.description
-            description = description.replace(/<\/?[^>]+(>|$)/g, "");
-
-            
+            description = description.replace(/<\/?[^>]+(>|$)/g, ""); 
+            // console.log(description);       
           }
-
-
         }
-
-        
-        this.setState({ tracked: true,
-          name: nameObj,
+        this.setState({ 
+          name: name,
           identifier: id,
           scientificName:sciName,
           imageUrl: image,
           description: description
         })
-        
     })
-
+    let tracked = this.state.tracked;
+    let docRef = db.collection("tracked").doc(randomElement);
+    var self=this;
+    docRef.get()
+    .then(function(doc) {
+      if (doc.exists) {
+        tracked = doc.exists;
+        // console.log(tracked);
+          // console.log("Document data:", doc.data());
+      } else {
+        tracked = doc.exists;
+          // doc.data() will be undefined in this case
+          // console.log("No such document!");
+      }
+      self.setState({tracked:tracked})
+    }).catch(function(error) {
+      // console.log("Error getting document:", error);
+    });
+    // this.setState({tracked: tracked})
   }
 
   componentWillMount() {
@@ -82,30 +104,6 @@ export default class DailyScreen extends React.Component {
       //unsubscribe listeners to prevent mem leaks
       this.unsubscribeTracked();
     }
-  }
-  checkTracked() {
-    db.collection("tracked").doc(this.state.id).get()
-    .then(snapshot => {
-      if (snapshot.exists){
-        this.setState({
-          tracked: true,
-        });
-      }
-    })
-  }
-
-
-
-  removeItemFromList = (event) => {
-    event.stopPropagation();
-
-    db.collection("tracked")
-      .doc(this.state.id)
-      .delete();
-  };
-
-  onClick = () => {
-    this.setState({})
   }
   
   
@@ -116,31 +114,54 @@ export default class DailyScreen extends React.Component {
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}>
+                <View style={[styles.getStartedContainer, styles.codeHighlightContainer, {marginTop: 50, height:50}]}><Text style={[styles.getStartedText, { marginTop:15, fontSize:25, color:'black'}]}>Species of the Day</Text></View>
+
         <View style={styles.welcomeContainer}>
           <Image
-            source={{
-              uri: imageUrl            }}
+            source={{uri: imageUrl}}
             style={styles.welcomeImage}
           />
         </View>
 
         <View style={styles.getStartedContainer}>
-        <Text>Name</Text>
+        <Text style={[styles.getStartedText, {color: 'black'}]}>Species Name:</Text>
               <Text style={styles.getStartedText}>{name}</Text>
           <View
             style={[styles.codeHighlightContainer, styles.homeScreenFilename]}>
-            <Text>Scientific Name</Text>
+            <Text style={[styles.getStartedText, {fontStyle: 'italic', color:'black'}]}>Scientific Name:</Text>
             <MonoText>{scientificName}</MonoText>
           </View>
+          <Button style={{width: 200, margin: 20,}} title={tracked ? "Untrack" : "Track"} buttonStyle={{backgroundColor: tracked ? 'red' : 'green'}} onPress={() => {
+    let id = this.state.identifier;
+    let stateObj = {
+      eol_id: this.state.identifier,
+      name: this.state.name,
+      scientificName:this.state.scientificName,
+      imageUrl:this.state.imageUrl,
+      description: this.state.description
+    }
 
-          <Text>Description</Text>
-          <Text style={styles.getStartedText}>
+    // console.log(tracked);
+    if(tracked) {
+      db.collection('tracked').doc(id.toString()).delete();
+    }
+    else {
+      db.collection('tracked').doc(id.toString()).set(stateObj);
+    }
+    this.setState({
+      tracked: !tracked
+    })
+  }}/>
+
+          <Text style={[styles.getStartedText, {color: 'black'}]}>Description:</Text>
+          <Text style={[styles.getStartedText, {marginBottom:50, fontSize:17, lineHeight:16}]}>
           {description}
 
           </Text>
+
         </View>
 
-
+     
       </ScrollView>
 
       <View style={styles.tabBarInfoContainer}>
@@ -162,28 +183,7 @@ DailyScreen.navigationOptions = {
   header: null,
 };
 
-function DevelopmentModeNotice() {
-  if (__DEV__) {
-    const learnMoreButton = (
-      <Text onPress={handleLearnMorePress} style={styles.helpLinkText}>
-        Learn more
-      </Text>
-    );
 
-    return (
-      <Text style={styles.developmentModeText}>
-        Development mode is enabled: your app will be slower but you can use
-        useful development tools. {learnMoreButton}
-      </Text>
-    );
-  } else {
-    return (
-      <Text style={styles.developmentModeText}>
-        You are not in development mode: your app will run at full speed.
-      </Text>
-    );
-  }
-}
 
 function handleLearnMorePress() {
   WebBrowser.openBrowserAsync(
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   welcomeImage: {
     width: 200,
     height: 200,
-    resizeMode: 'contain',
+    resizeMode: 'cover',
     marginTop: 3,
     marginLeft: -10,
     borderRadius:70,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   getStartedText: {
-    fontSize: 17,
+    fontSize: 24,
     color: 'rgba(96,100,109, 1)',
     lineHeight: 24,
     textAlign: 'center',

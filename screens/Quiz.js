@@ -11,72 +11,76 @@ import {
 } from 'react-native';
 
 import { MonoText } from '../components/StyledText';
+import {Button} from 'react-native-elements';
+
+import firebase, {firebaseConfig} from '../secret.config';
+require("firebase/firestore");
+
+const db = firebase.firestore();
 
 export default class Quiz extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            score: 0,
-            finished: false,
+          species: ["koala", "elephant"],
+          images: ["https://content.eol.org/data/media/80/84/6f/542.6121718655.jpg","https://content.eol.org/data/media/80/e2/87/542.6963643892.jpg"],
+          triviaList: [["The average koala weighs 50 pounds", "The average koala lives 13-18 years"],
+        ["The average elephant weighs up to 13000 pounds", "the average elephant lives for up to 50 years"]],
+          speciesIndex: 0,
+          triviaIndex:0
+
         }
     }
+    componentWillUpdate() {
 
-    finishQuiz = () => this.setState({score: score, finished: true})
-
+    }
 
     render() {
+      const {species, images, triviaList, speciesIndex, triviaIndex} = this.state;
+      console.log(images[speciesIndex]);
+      let newimg = images[speciesIndex];
         return (
-            <View style={styles.container}>
-              <ScrollView
-                style={styles.container}
-                contentContainerStyle={styles.contentContainer}>
+            <View style={[styles.container, {marginTop:40}]}>
+<ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}>
+                 <View style={[styles.getStartedContainer, styles.codeHighlightContainer, {marginTop: 50, height:50}]}><Text style={[styles.getStartedText, { marginTop:15, fontSize:25, color:'black'}]}>Species Trivia</Text></View>
+
                 <View style={styles.welcomeContainer}>
-                  <Image
-                    source={
-                      __DEV__
-                        ? require('../assets/images/robot-dev.png')
-                        : require('../assets/images/robot-prod.png')
-                    }
-                    style={styles.welcomeImage}
-                  />
-                </View>
-        
-                <View style={styles.getStartedContainer}>
-                  <DevelopmentModeNotice />
-        
-                  <Text style={styles.getStartedText}>Bios</Text>
-        
-                  <View
-                    style={[styles.codeHighlightContainer, styles.homeScreenFilename]}>
-                    <MonoText>screens/Tracked.js</MonoText>
-                  </View>
-        
-                  <Text style={styles.getStartedText}>
-                    Change this text and your app will automatically reload.
-                  </Text>
-                </View>
-        
-                <View style={styles.helpContainer}>
-                  <TouchableOpacity onPress={handleHelpPress} style={styles.helpLink}>
-                    <Text style={styles.helpLinkText}>
-                      Help, it didn’t automatically reload!
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-        
-              <View style={styles.tabBarInfoContainer}>
-                <Text style={styles.tabBarInfoText}>
-                  This is a tab bar. You can edit it in:
-                </Text>
-        
-                <View
-                  style={[styles.codeHighlightContainer, styles.navigationFilename]}>
-                  <MonoText style={styles.codeHighlightText}>
-                    navigation/MainTabNavigator.js
-                  </MonoText>
-                </View>
-              </View>
+
+            <Image source={{uri: newimg}} style={styles.welcomeImage} />
+            </View>
+
+            <View style={styles.getStartedContainer}>
+            <Text style={{fontSize: 40}}>{species[speciesIndex]}</Text>
+            {console.log("Species index " +speciesIndex + "trivia index " +triviaIndex)}
+            <Text>{triviaList[speciesIndex][triviaIndex]}</Text>
+
+            <Button style={{width: 200, margin: 20,}} title={"Next Trivia"} buttonStyle={{backgroundColor: 'green'}} onPress={ () => {
+              if(triviaList.length==triviaIndex+1) {
+                this.setState({triviaIndex:0})
+              }
+              else {
+                let index = triviaIndex+1;
+                this.setState({triviaIndex: index})
+              }
+
+            }}/>
+            <Button style={{width: 200, margin: 20,}} title={"Next Species"} buttonStyle={{backgroundColor: 'red'}} onPress={ () => {
+              if(speciesIndex.length==speciesIndex+1) {
+                this.setState({speciesIndex:0, triviaIndex:0})
+                this.forceUpdate()
+              }
+              else {
+                let index = speciesIndex+1;
+                this.setState({speciesIndex: index})
+                this.forceUpdate()
+              }
+            }} />
+            </View>
+
+
+</ScrollView>
             </View>
           );
     }
@@ -142,12 +146,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
   },
+  welcomeContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
   welcomeImage: {
-    width: 100,
-    height: 80,
-    resizeMode: 'contain',
+    width: 200,
+    height: 200,
+    resizeMode: 'cover',
     marginTop: 3,
     marginLeft: -10,
+    borderRadius:70,
   },
   getStartedContainer: {
     alignItems: 'center',
@@ -165,7 +175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   getStartedText: {
-    fontSize: 17,
+    fontSize: 24,
     color: 'rgba(96,100,109, 1)',
     lineHeight: 24,
     textAlign: 'center',

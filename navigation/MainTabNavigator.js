@@ -29,7 +29,7 @@ TrackedStack.navigationOptions = {
       focused={focused}
       name={
         Platform.OS === 'ios' ? 'ios-link' : 'md-link'
-      }
+      } 
     />
   ),
 };
